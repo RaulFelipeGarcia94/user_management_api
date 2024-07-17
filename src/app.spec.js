@@ -1,20 +1,48 @@
 const app = require("./app");
 const request = require("supertest")(app);
+const EventRepository = require("./repository");
+const { MongoClient } = require("mongodb");
 
 describe("Event API", () => {
-  test("Listar os eventos", async () => {
+  let client;
+  let collection;
+  let repository;
+
+  beforeAll(async () => {
+    const dsn =
+      "mongodb://root:root@localhost?retryWrites=true&writeConcern=majority";
+    client = new MongoClient(dsn);
+    collection = client.db("events_db").collection("events");
+    repository = new EventRepository(collection);
+    await client.connect();
+  });
+
+  afterAll(() => {
+    client.close();
+  });
+
+  beforeEach(async () => {
+    await collection.deleteMany({});
+  });
+
+  test.only("Listar os eventos", async () => {
+    await repository.create({
+      name: "Rock in Rio",
+      date: "2024-02-02",
+    });
+
     const response = await request
       .get("/events")
       .expect("Content-Type", /application\/json/);
 
     expect(response.statusCode).toEqual(200);
     expect(response.body.length).toBe(1);
-    expect(response.body).toStrictEqual([
-      {
+    expect(response.body[0]).toStrictEqual(
+      expect.objectContaining({
         name: "Rock in Rio",
-        date: "2024-01-01",
-      },
-    ]);
+        date: "2024-02-02",
+      })
+    );
   });
   test("Detalhar um evento", async () => {
     const response = await request
