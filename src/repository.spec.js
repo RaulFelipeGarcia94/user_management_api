@@ -1,5 +1,5 @@
 const UserRepository = require("./repository");
-const { MongoClient, ObjectId } = require("mongodb");
+const { MongoClient } = require("mongodb");
 
 describe("UserRepository", () => {
   let client;
