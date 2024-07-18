@@ -1,5 +1,5 @@
 const express = require("express");
-const EventRepository = require("./repository");
+const UserRepository = require("./repository");
 const { MongoClient } = require("mongodb");
 const cors = require("cors");
 
@@ -7,52 +7,47 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    exposedHeaders: "X-Total-count",
+    exposedHeaders: "X-Total-Count",
   })
 );
 
+const dsn =
+  "mongodb://root:root@localhost?retryWrites=true&writeConcern=majority";
 let client;
+let repository;
 
-const createRepository = () => {
-  const dsn =
-    "mongodb://root:root@localhost?retryWrites=true&writeConcern=majority";
+const initializeDatabase = async () => {
   client = new MongoClient(dsn);
-  const collection = client.db("events_db").collection("events");
-
-  return new EventRepository(collection);
-};
-
-const normalizeEvent = (event) => {
-  event.id = event._id;
-  delete event._id;
-  return event;
-};
-
-app.get("/events", async (req, res) => {
-  const repository = createRepository();
   await client.connect();
-  const events = await repository.findAll();
-  res.setHeader("X-Total-Count", events.length);
-  res.json(events.map(normalizeEvent));
-  client.close();
+  const collection = client.db("users_db").collection("users");
+  repository = new UserRepository(collection);
+};
+
+const normalizeUser = (user) => {
+  user.id = user._id;
+  delete user._id;
+  return user;
+};
+
+app.get("/users", async (req, res) => {
+  const users = await repository.findAll();
+  res.setHeader("X-Total-Count", users.length);
+  res.json(users.map(normalizeUser));
 });
 
-app.get("/events/:id", async (req, res) => {
+app.get("/users/:id", async (req, res) => {
   if (req.params.id === "0") {
     res.status(404).json({
       error: 404,
-      message: "EventNotFound",
+      message: "UserNotFound",
     });
   } else {
-    const repository = createRepository();
-    await client.connect();
-    const event = await repository.find(req.params.id);
-    res.json(normalizeEvent(event));
-    client.close();
+    const user = await repository.find(req.params.id);
+    res.json(normalizeUser(user));
   }
 });
 
-app.post("/events", async (req, res) => {
+app.post("/users", async (req, res) => {
   if (req.headers["content-type"] !== "application/json") {
     res.status(400).send({
       error: 400,
@@ -61,42 +56,35 @@ app.post("/events", async (req, res) => {
     return;
   }
 
-  const repository = createRepository();
-  await client.connect();
-  const event = await repository.create(req.body);
-  res.status(201).json(normalizeEvent(event));
-  client.close();
+  const user = await repository.create(req.body);
+  res.status(201).json(normalizeUser(user));
 });
 
-app.put("/events/:id", async (req, res) => {
+app.put("/users/:id", async (req, res) => {
   if (req.params.id === "0") {
     res.status(404).json({
       error: 404,
-      message: "EventNotFound",
+      message: "UserNotFound",
     });
     return;
   }
 
-  const repository = createRepository();
-  await client.connect();
-  const event = await repository.update(req.params.id, req.body);
-  res.json(normalizeEvent(event));
-  client.close();
+  const user = await repository.update(req.params.id, req.body);
+  res.json(normalizeUser(user));
 });
 
-app.delete("/events/:id", async (req, res) => {
+app.delete("/users/:id", async (req, res) => {
   if (req.params.id === "0") {
     res.status(404).json({
       error: 404,
-      message: "EventNotFound",
+      message: "UserNotFound",
     });
     return;
   }
-  const repository = createRepository();
-  await client.connect();
   await repository.delete(req.params.id);
   res.status(204).send({});
-  client.close();
 });
+
+initializeDatabase().catch(console.error);
 
 module.exports = app;

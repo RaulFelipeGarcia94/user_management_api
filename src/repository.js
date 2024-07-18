@@ -1,67 +1,38 @@
-const { ObjectId } = require("mongodb");
-
-class EventRepository {
+const mongo = require("mongodb");
+class UserRepository {
   constructor(collection) {
     this.collection = collection;
   }
 
   async find(id) {
-    try {
-      return await this.collection.findOne({ _id: new ObjectId(id) });
-    } catch (error) {
-      console.error("Erro ao buscar o documento:", error);
-      throw error;
-    }
+    return await this.collection.findOne({
+      _id: new mongo.ObjectId(id),
+    });
   }
 
   async findAll() {
-    try {
-      const result = await this.collection.find({}).toArray();
-      return result;
-    } catch (error) {
-      console.error("Erro ao buscar todos os documentos:", error);
-      throw error;
-    }
+    const result = await this.collection.find({});
+    return result.toArray();
   }
 
-  async create(event) {
-    try {
-      await this.collection.insertOne(event);
-      return event;
-    } catch (error) {
-      console.error("Erro ao criar o documento:", error);
-      throw error;
-    }
+  async create(user) {
+    await this.collection.insertOne(user);
+    return user;
   }
 
-  async update(id, updatedEvent) {
-    try {
-      const result = await this.collection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updatedEvent }
-      );
-      if (result.matchedCount === 0) {
-        throw new Error("Nenhum documento encontrado com o ID fornecido");
+  async update(id, updatedUser) {
+    await this.collection.updateOne(
+      { _id: new mongo.ObjectId(id) },
+      {
+        $set: updatedUser,
       }
-      return result;
-    } catch (error) {
-      console.error("Erro ao atualizar o documento:", error);
-      throw error;
-    }
+    );
+    return await this.find(id);
   }
 
   async delete(id) {
-    try {
-      const result = await this.collection.deleteOne({ _id: new ObjectId(id) });
-      if (result.deletedCount === 0) {
-        throw new Error("Nenhum documento encontrado com o ID fornecido");
-      }
-      return result;
-    } catch (error) {
-      console.error("Erro ao deletar o documento:", error);
-      throw error;
-    }
+    await this.collection.deleteOne({ _id: new mongo.ObjectId(id) });
   }
 }
 
-module.exports = EventRepository;
+module.exports = UserRepository;
