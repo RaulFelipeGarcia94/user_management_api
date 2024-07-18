@@ -1,8 +1,7 @@
-const EventRepository = require("./repository");
-const { MongoClient } = require("mongodb");
-const mongo = require("mongodb");
+const UserRepository = require("./repository");
+const { MongoClient, ObjectId } = require("mongodb");
 
-describe("EventRepository", () => {
+describe("UserRepository", () => {
   let client;
   let collection;
   let repository;
@@ -11,84 +10,106 @@ describe("EventRepository", () => {
     const dsn =
       "mongodb://root:root@localhost?retryWrites=true&writeConcern=majority";
     client = new MongoClient(dsn);
-    collection = client.db("events_db").collection("events");
-    repository = new EventRepository(collection);
     await client.connect();
+    collection = client.db("users_db").collection("users");
+    repository = new UserRepository(collection);
   });
 
-  afterAll(() => {
-    client.close();
+  afterAll(async () => {
+    await client.close();
   });
 
   beforeEach(async () => {
     await collection.deleteMany({});
   });
 
-  test("Procurar por um evento", async () => {
+  test("Procurar por um usuário", async () => {
     const insertResult = await collection.insertOne({
-      name: "Rock in Rio",
-      date: "2024-12-31",
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
     });
 
-    const event = await repository.find(insertResult.insertedId.toString());
+    const user = await repository.find(insertResult.insertedId.toString());
 
-    expect(event).toStrictEqual(
-      expect.objectContaining({ name: "Rock in Rio", date: "2024-12-31" })
+    expect(user).toStrictEqual(
+      expect.objectContaining({
+        name: "Raul",
+        email: "raul@teste.com",
+        password: "123456",
+      })
     );
   });
-  test("Listar todos os eventos", async () => {
+
+  test("Listar todos os usuários", async () => {
     await collection.insertOne({
-      name: "Rock in Rio",
-      date: "2024-12-31",
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
     });
 
-    const events = await repository.findAll();
+    const users = await repository.findAll();
 
-    expect(events.length).toBe(1);
+    expect(users.length).toBe(1);
 
-    expect(events[0]).toStrictEqual(
-      expect.objectContaining({ name: "Rock in Rio", date: "2024-12-31" })
+    expect(users[0]).toStrictEqual(
+      expect.objectContaining({
+        name: "Raul",
+        email: "raul@teste.com",
+        password: "123456",
+      })
     );
   });
-  test("Criar um novo evento", async () => {
-    const event = await repository.create({
-      name: "Rock in Rio",
-      date: "2024-12-31",
+
+  test("Criar um novo usuário", async () => {
+    const user = await repository.create({
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
     });
 
-    expect(event).toStrictEqual(
-      expect.objectContaining({ name: "Rock in Rio", date: "2024-12-31" })
+    expect(user).toStrictEqual(
+      expect.objectContaining({
+        name: "Raul",
+        email: "raul@teste.com",
+        password: "123456",
+      })
     );
   });
-  test("Atualizar um evento", async () => {
+
+  test("Atualizar um usuário", async () => {
     const insertResult = await collection.insertOne({
-      name: "Rock in Rio",
-      date: "2024-12-31",
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
     });
 
-    const eventId = insertResult.insertedId.toString();
+    const userId = insertResult.insertedId.toString();
 
-    const updatedEvent = { name: "Rock in Rio 2024", date: "2024-12-31" };
-    await repository.update(eventId, updatedEvent);
+    const updatedUser = {
+      name: "Raul Garcia",
+      email: "raul_garcia@teste.com",
+      password: "123456789",
+    };
+    await repository.update(userId, updatedUser);
 
-    const updatedDocument = await repository.find(eventId);
+    const updatedDocument = await repository.find(userId);
 
-    expect(updatedDocument).toStrictEqual(
-      expect.objectContaining(updatedEvent)
-    );
+    expect(updatedDocument).toStrictEqual(expect.objectContaining(updatedUser));
   });
 
-  test("Remover um evento", async () => {
+  test("Remover um usuário", async () => {
     const insertResult = await collection.insertOne({
-      name: "Rock in Rio",
-      date: "2024-12-31",
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
     });
 
-    const eventId = insertResult.insertedId.toString();
+    const userId = insertResult.insertedId.toString();
 
-    await repository.delete(eventId);
+    await repository.delete(userId);
 
-    const deletedDocument = await repository.find(eventId);
+    const deletedDocument = await repository.find(userId);
 
     expect(deletedDocument).toBeNull();
   });

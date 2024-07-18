@@ -1,9 +1,9 @@
 const app = require("./app");
 const request = require("supertest")(app);
-const EventRepository = require("./repository");
-const { MongoClient } = require("mongodb");
+const UserRepository = require("./repository");
+const { MongoClient, ObjectId } = require("mongodb");
 
-describe("Event API", () => {
+describe("User API", () => {
   let client;
   let collection;
   let repository;
@@ -12,9 +12,9 @@ describe("Event API", () => {
     const dsn =
       "mongodb://root:root@localhost?retryWrites=true&writeConcern=majority";
     client = new MongoClient(dsn);
-    collection = client.db("events_db").collection("events");
-    repository = new EventRepository(collection);
     await client.connect();
+    collection = client.db("users_db").collection("users");
+    repository = new UserRepository(collection);
   });
 
   afterAll(() => {
@@ -25,50 +25,68 @@ describe("Event API", () => {
     await collection.deleteMany({});
   });
 
-  test.only("Listar os eventos", async () => {
+  test("Listar os usuários", async () => {
     await repository.create({
-      name: "Rock in Rio",
-      date: "2024-02-02",
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
     });
 
     const response = await request
-      .get("/events")
+      .get("/users")
       .expect("Content-Type", /application\/json/);
 
     expect(response.statusCode).toEqual(200);
     expect(response.body.length).toBe(1);
     expect(response.body[0]).toStrictEqual(
       expect.objectContaining({
-        name: "Rock in Rio",
-        date: "2024-02-02",
+        name: "Raul",
+        email: "raul@teste.com",
+        password: "123456",
       })
     );
   });
-  test("Detalhar um evento", async () => {
+
+  test("Detalhar um usuário", async () => {
+    const user = await repository.create({
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
+    });
+
     const response = await request
-      .get("/events/123456789")
+      .get(`/users/${user._id}`)
       .expect("Content-Type", /application\/json/);
 
     expect(response.statusCode).toEqual(200);
-    expect(response.body).toStrictEqual({
-      name: "Rock in Rio",
-      date: "2024-01-01",
-    });
+    expect(response.body).toStrictEqual(
+      expect.objectContaining({
+        name: "Raul",
+        email: "raul@teste.com",
+        password: "123456",
+      })
+    );
   });
-  test("Detalhar um evento que não existe retorna 404", async () => {
+
+  test("Detalhar um usuário que não existe retorna 404", async () => {
     const response = await request
-      .get("/events/0")
+      .get("/users/0")
       .expect("Content-Type", /application\/json/);
 
     expect(response.statusCode).toEqual(404);
     expect(response.body).toStrictEqual({
       error: 404,
-      message: "EventNotFound",
+      message: "UserNotFound",
     });
   });
-  test("Cadastrar um novo evento em xml deve retornar 400", async () => {
+
+  test("Cadastrar um novo usuário em XML deve retornar 400", async () => {
     const response = await request
-      .post("/events")
+      .post("/users")
+      .set("Content-Type", "application/xml")
+      .send(
+        "<user><name>Raul</name><email>raul@teste.com</email><password>123456</password></user>"
+      )
       .expect("Content-Type", /application\/json/);
 
     expect(response.statusCode).toBe(400);
@@ -77,59 +95,92 @@ describe("Event API", () => {
       message: "ContentTypeNotSupported",
     });
   });
-  test("Cadastrar um novo evento", async () => {
+
+  test("Cadastrar um novo usuário", async () => {
     const response = await request
-      .post("/events")
-      .send({ name: "Rock in Rio", date: "2024-01-01" })
+      .post("/users")
+      .send({
+        name: "Raul",
+        email: "raul@teste.com",
+        password: "123456",
+      })
       .expect("Content-Type", /application\/json/);
 
     expect(response.statusCode).toBe(201);
     expect(response.body).toStrictEqual(
       expect.objectContaining({
-        name: "Rock in Rio",
-        date: "2024-01-01",
+        name: "Raul",
+        email: "raul@teste.com",
+        password: "123456",
       })
     );
-    expect(response.body._id).not.toBe(undefined);
+    expect(response.body.id).not.toBe(undefined);
   });
-  test("Editar um evento existente", async () => {
+
+  test("Editar um usuário existente", async () => {
+    const user = await repository.create({
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
+    });
+
     const response = await request
-      .put("/events/123456789")
-      .send({ name: "Rock in Rio", date: "2024-02-01" })
+      .put(`/users/${user._id}`)
+      .send({
+        name: "Raul Garcia",
+        email: "raul_garcia@teste.com",
+        password: "123456",
+      })
       .expect("Content-Type", /application\/json/);
 
     expect(response.statusCode).toBe(200);
-    expect(response.body).toStrictEqual({
-      _id: "123456789",
-      name: "Rock in Rio",
-      date: "2024-02-01",
-    });
+    expect(response.body).toStrictEqual(
+      expect.objectContaining({
+        name: "Raul Garcia",
+        email: "raul_garcia@teste.com",
+        password: "123456",
+      })
+    );
   });
-  test("Editar um evento inexistente", async () => {
+
+  test("Editar um usuário inexistente", async () => {
     const response = await request
-      .put("/events/0")
-      .send({ name: "Rock in Rio", date: "2024-02-01" })
+      .put("/users/0")
+      .send({
+        name: "João",
+        email: "joao@teste.com",
+        password: "123",
+      })
       .expect("Content-Type", /application\/json/);
 
     expect(response.statusCode).toBe(404);
     expect(response.body).toStrictEqual({
       error: 404,
-      message: "EventNotFound",
+      message: "UserNotFound",
     });
   });
-  test("Remover um evento existente", async () => {
-    const response = await request.delete("/events/123456789");
+
+  test("Remover um usuário existente", async () => {
+    const user = await repository.create({
+      name: "Raul",
+      email: "raul@teste.com",
+      password: "123456",
+    });
+
+    const response = await request.delete(`/users/${user._id}`);
     expect(response.statusCode).toBe(204);
     expect(response.body).toStrictEqual({});
   });
-  test("Remover um evento inexistente", async () => {
+
+  test("Remover um usuário inexistente", async () => {
     const response = await request
-      .delete("/events/0")
+      .delete("/users/0")
       .expect("Content-Type", /application\/json/);
+
     expect(response.statusCode).toBe(404);
     expect(response.body).toStrictEqual({
       error: 404,
-      message: "EventNotFound",
+      message: "UserNotFound",
     });
     expect(response.clientError).toBe(true);
   });
